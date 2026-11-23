@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+    <head>
+	<title>local WASM embeddings</title>	
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	<meta name="MobileOptimized" content="width">
+	<meta name="HandheldFriendly" content="true">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" type="text/css" href="bootstrap.5.3.8.min.css" />
+	<link rel="stylesheet" type="text/css" href="embeddings.css" />		
+	<style>
+	</style>
+    </head>
+    <body>
+	<div class="container">
+	    <div class="row" id="loading">
+		<div class="col">
+		    <label for="loading-progress">Loading WebAssembly modules&hellip; <span id="loading-status">0 of 2</span></label>
+		    <progress id="loading-progress" max="2" value="0"></progress>
+		    <div id="loading-error" class="text-danger" role="alert" hidden></div>
+		</div>
+	    </div>
+	    
+	    <div class="row layout" id="layout" hidden>
+		<div class="layout-left">
+
+		    <div id="layout-models" class="sect">
+			<!-- <h4>Models</h4> -->
+			
+			<div class="mb-3">
+			    <label class="form-label" for="url"><span class="clear" role="button" tabindex="0" title="Clear" aria-label="Clear" data-clear="url model-file model-cached"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-circle" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"></path></svg></span> Model (GGUF) file to generate text embeddings with</label>			    			    
+			    <select class="form-select cached" id="model-cached" data-target="url" data-file="model-file" aria-label="Cached models" hidden></select>
+			    <span class="or">or</span>
+			    <input class="form-control" id="url" size="80" placeholder="URL of a GGUF embedding model">
+			    or <input class="form-control" id="model-file" type="file" accept=".gguf">
+
+			    <small><span class="feedback">Suggested: <a href="#" class="pick" data-target="url" data-value="https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/main/embeddinggemma-2-Q8_0.gguf">embeddinggemma-2-Q8_0.gguf</a> (300MB)</span></small>
+			    <div>
+				<progress id="progress" max="100" value="0"></progress>
+			    </div>
+			</div>
+			
+			<div class="mb-3">
+			    <label class="form-label" for="url"><span class="clear" role="button" tabindex="0" title="Clear" aria-label="Clear" data-clear="mmproj mmproj-file mmproj-cached"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-circle" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"></path></svg></span> Model (GGUF) mmproj file to generate image embeddings with</label>
+			    <select class="form-select cached" id="mmproj-cached" data-target="mmproj" data-file="mmproj-file" aria-label="Cached mmproj files" hidden></select>
+			    <span class="or">or</span>
+			    <input class="form-control" id="mmproj" size="80" placeholder="Optional URL of the mmproj GGUF (for images)">
+			    or <input class="form-control" id="mmproj-file" type="file" accept=".gguf">			   
+			    
+			    <small><span class="feedback">Suggested: <a href="#" class="pick" data-target="mmproj" data-value="https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/main/mmproj-embeddinggemma-2-Q8_0.gguf">mmproj-embeddinggemma-2-Q8_0.gguf</a> (500MB)</span></small>
+			    <div>
+				<progress id="mmproj-progress" max="100" value="0"></progress>
+			    </div>
+			</div>
+			
+			<div>
+			    <button class="btn btn-primary" id="load">Load model(s)</button>
+			    <button class="btn btn-warning" id="purge">Purge model cache</button>
+			</div>
+		    </div>
+		    
+		    <div layout-log">
+			<details open>
+			    <summary>Logs</summary>
+			    <pre id="log"></pre>
+			</details>
+		    </div>
+
+		</div>
+		
+		<div id="layout-center">
+
+		    <div id="layout-input" class="sect">
+			<!-- <h4>Input</h4> -->
+			
+			<div class="mb-3">
+			    <label class="form-label" for="text">Text to generate embeddings for</label>			    
+			    <input class="form-control"id="text" size="80" value="A walrus on a beach" />
+			</div>
+
+			<div class="mb-3">
+			    <button class="btn btn-primary" id="embed" data-off="1" disabled>Embed Text</button>			    
+			</div>
+			
+			<div class="mb-3">
+			    <img id="preview" alt="" hidden style="max-width:200px;max-height:200px;margin-top:.5em; margin-bottom:.5rem;">
+			</div>
+			
+			<div class="mb-3">
+			    <label class="form-label" for="image"><span class="clear" role="button" tabindex="0" title="Clear" aria-label="Clear" data-clear="image"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-circle" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"></path></svg></span> Image generate embeddings for</label>			    			    
+			    <input class="form-control" id="image" type="file" accept="image/*">
+			</div>
+
+			
+			<div class="mb-3">
+			    <button class="btn btn-primary" id="embed-image" data-off="1" disabled>Embed image</button>
+			    <small class="d-block"><span class="feedback" id="embed-image-hint"></span></small>			    			    
+			</div>
+			
+			<div id="busy" class="mb-3" hidden>
+			    <progress></progress>
+			    <div id="busy-text"></div>
+			</div>
+
+	    		<div id="layout-embeddings" style="display:flex;gap:1em;align-items:flex-start">
+			    <details style="flex:1">
+				<summary>Embeddings<span id="embeddings-kind"></span></summary>
+				<pre id="embeddings" style="height:30vh;overflow:scroll"></pre>
+			    </details>
+			</div>
+			
+		    </div>
+		    
+		    <div id="layout-compare" class="sect">
+			<!-- <h4>Compare</h4> -->
+			
+			<div class="mb-3">
+			    <label class="form-label" for="url"><span class="clear" role="button" tabindex="0" title="Clear" aria-label="Clear" data-clear="parquet-url parquet-file parquet-cached"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-circle" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"></path></svg></span> Parquet file containing shared vector embeddings to query</label>			    
+			    <select class="form-select" id="parquet-cached" aria-label="Cached indexes" hidden></select>
+			    <span class="or">or</span>
+			    <input class="form-control" id="parquet-url" size="80" placeholder="URL of a Parquet file of embeddings records (needs CORS + Range)">
+			    or <input class="form-control" id="parquet-file" type="file" accept=".parquet">
+			    <small><span class="feedback">Suggested: <a href="#" class="pick" data-target="parquet-url" data-value="https://static.sfomuseum.org/embeddings/moma-collection-768-embeddinggemma2-20261108.parquet">moma-collection-768-embeddinggemma2-20261108.parquet</a> (660MB)</span></small>
+			    <small><span class="feedback" id="parquet-status"></span></small>			    
+			</div>
+			
+			
+			<input class="form-control" id="parquet-model" size="40" placeholder="Model name in the file (default: the loaded model)" style="display:none;">
+			
+			<div>
+			    <button class="btn btn-primary" id="parquet-load" disabled>Load index</button>
+			    <button class="btn btn-warning" id="parquet-purge">Purge index cache</button>
+			</div>
+			
+			<div>
+			    <progress id="parquet-progress" max="100" value="0"></progress>
+			</div>
+
+			<div id="layout-search" class="class="mb-3"">
+			    <button class="btn btn-primary" id="similar-local" disabled>Search locally</button>
+			    <progress id="search-progress" class="d-block" hidden></progress>
+			    <small class="d-block"><span class="feedback" id="parquet-load-hint"></span></small>
+			</div>
+			
+		    </div>
+		    
+		</div>
+	    
+		<div class="layout-right">
+		    
+		    <div id="results" hidden>
+		    </div>
+		    		    
+		    
+		</div> <!-- layout-right>
+	    </div>  <!-- layout -->
+	</div> <!-- container -->
+	
+	<script src="./query.js"></script>
+	<script src="./embeddings.init.js"></script>
+    </body>
+</html>

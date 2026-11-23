@@ -1,0 +1,120 @@
+details summary {
+	font-weight: 700;
+}
+
+label {
+	font-weight: 700;
+}
+
+#busy-text {
+	font-size: small;
+	font-style: italic;
+}
+
+#preview {
+	display: block;
+}
+
+#preview[hidden] {
+	display: none;
+}
+
+.feedback {
+	font-style: italic;
+	margin-top:.5rem;
+	margin-bottom:.5rem;
+	display:block;
+}
+
+.layout {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr;
+	gap: .5em;
+	align-items: start;
+}
+
+.layout[hidden] {
+	display: none;
+}
+
+#loading progress {
+	width: 100%;
+}
+
+#loading-error {
+	white-space: pre-line;
+}
+
+.cached {
+	margin-bottom: .5em;
+}
+
+.or {
+	display: block;
+}
+
+.cached[hidden] + .or,
+#parquet-cached[hidden] + .or {
+	display: none;
+}
+
+.clear {
+	cursor: pointer;
+	margin-right: .25em;
+	vertical-align: middle;
+}
+
+.layout > div {
+	min-width: 0;
+}
+
+.result {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: .5em;
+	margin-bottom: 1em;
+	font-size: small;
+}
+
+.result img {
+	flex: none;
+	max-width: 300px;
+	max-height: 300px;
+	object-fit: contain;
+}
+
+#log {
+	max-height: 20vh;
+	overflow: auto;
+}
+
+#results {
+	max-height: 85vh;
+	overflow: auto;
+	margin-bottom:1rem;
+	border: solid thin;
+	padding: 1rem;
+}
+
+.result dl {
+	margin: 0;
+}
+
+.result dt {
+	font-weight: bold;
+}
+
+.result dd {
+	margin: 0 0 .25em 0;
+}
+
+.sect {
+	border: solid thin;
+	padding: .5rem;
+	margin-bottom:1rem;
+}
+
+
+/* d-block would otherwise override the hidden attribute */
+#search-progress[hidden] { display: none !important; }
