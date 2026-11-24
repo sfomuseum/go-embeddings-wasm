@@ -4,17 +4,20 @@
 # Uses the yzma checkout in $YZMA_SRC (default build/yzma), cloning it first if it is missing.
 set -euo pipefail
 
-PARQUET_SRC="${PARQUET_SRC:-/usr/local/sfomuseum/go-parquet}"
-
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 OUT="$ROOT/build/wasm"
 YZMA_SRC="${YZMA_SRC:-$ROOT/build/yzma}"
+PARQUET_SRC="${PARQUET_SRC:-$ROOT/build/go-parquet}"
 
 mkdir -p "$OUT"
 
 if [ ! -d "$YZMA_SRC" ]; then
 	git clone https://github.com/hybridgroup/yzma "$YZMA_SRC"
+fi
+
+if [ ! -d "$PARQUET_SRC" ]; then
+	git clone https://github.com/sfomuseum/go-parquet "$PARQUET_SRC"
 fi
 
 # A workspace file resolves yzma to the local checkout and bypasses vendor/
