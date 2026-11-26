@@ -6,7 +6,7 @@
  * <progress-meter><progress max="100" value="0"></progress></progress-meter>
  *
  * Call start() when a task begins and stop() when it ends (or set the "active" attribute).
- * If the child <progress> has a value, the icon shows while 0 < value < max.
+ * If the child <progress> has a value, the icon shows once 0 < value < max and hides at max.
  *
  * The element can be connected before the parser has read its children, so nothing here
  * depends on the children being present in connectedCallback.
@@ -20,13 +20,32 @@ class ProgressMeter extends HTMLElement {
     }
 
     connectedCallback() {
-	if (!this.querySelector(":scope > .progress-meter-icon")) {
-	    const template = document.createElement("template");
-	    template.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise progress-meter-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false" hidden>
-  <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
-  <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
-</svg>`;
-	    this.prepend(template.content.firstElementChild);
+	if (!this.#icon()) {
+	    const ns = "http://www.w3.org/2000/svg";
+	    const svg = document.createElementNS(ns, "svg");
+	    svg.setAttribute("width", "16");
+	    svg.setAttribute("height", "16");
+	    svg.setAttribute("viewBox", "0 0 16 16");
+	    svg.setAttribute("fill", "#333");
+	    svg.setAttribute("aria-hidden", "true");
+	    svg.setAttribute("focusable", "false");
+	    for (const [d, rule] of [
+		["M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z", "evenodd"],
+		["M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466", null],
+	    ]) {
+		const path = document.createElementNS(ns, "path");
+		path.setAttribute("d", d);
+		if (rule) {
+		    path.setAttribute("fill-rule", rule);
+		}
+		svg.append(path);
+	    }
+	    // The span is what spins and hides; SVG roots handle transforms and [hidden] inconsistently.
+	    const icon = document.createElement("span");
+	    icon.className = "progress-meter-icon";
+	    icon.hidden = true;
+	    icon.append(svg);
+	    this.prepend(icon);
 	}
 
 	// Setting progress.value reflects to the attribute, so this sees every update.
@@ -38,6 +57,8 @@ class ProgressMeter extends HTMLElement {
     }
 
     disconnectedCallback() {
+	clearInterval(this.#timer);
+	this.#timer = 0;
 	this.#observer?.disconnect();
 	this.#observer = null;
     }
@@ -72,14 +93,42 @@ class ProgressMeter extends HTMLElement {
 	    return;
 	}
 	const max = progress.max > 0 ? progress.max : 1;
-	this.active = progress.value > 0 && progress.value < max;
+	// A value of 0 leaves the state alone so start() before the first update is kept.
+		if (progress.value >= max) {
+		    this.active = false;
+		} else if (progress.value > 0) {
+		    this.active = true;
+		}
     }
 
+    /** The icon among the direct children (avoids :scope, which may be unsupported). */
+    #icon() {
+		for (const child of this.children) {
+		    if (child.classList.contains("progress-meter-icon")) {
+			return child;
+		    }
+		}
+		return null;
+    }
+
+    #timer = 0;
+
     #sync() {
-	const icon = this.querySelector(":scope > .progress-meter-icon");
+	const icon = this.#icon();
 	if (icon) {
-	    // SVG elements have no hidden property, so toggle the attribute.
-	    icon.toggleAttribute("hidden", !this.active);
+	    icon.hidden = !this.active;
+	    // Rotate from script: Servo does not advance CSS animations while it is busy,
+	    // and a timer keeps the icon turning whenever the page thread runs at all.
+	    if (this.active && !this.#timer) {
+		const t0 = performance.now();
+		this.#timer = setInterval(() => {
+		    const deg = ((performance.now() - t0) / 1000 * 360) % 360;
+		    icon.style.transform = `rotate(${deg}deg)`;
+		}, 40);
+	    } else if (!this.active && this.#timer) {
+		clearInterval(this.#timer);
+		this.#timer = 0;
+	    }
 	}
     }
 }

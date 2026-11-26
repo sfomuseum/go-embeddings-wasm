@@ -19,6 +19,32 @@ window.addEventListener("load", function load(event){
 	document.getElementById("log").textContent += s + "\n";
     };
     
+    // Clicking the clipboard icon copies the log; don't let it toggle the <details>.
+    document.getElementById("log-copy").addEventListener("click", async (event) => {
+	event.preventDefault();
+	event.stopPropagation();
+	try {
+	    const text = document.getElementById("log").textContent;
+	    if (navigator.clipboard && navigator.clipboard.writeText) {
+		await navigator.clipboard.writeText(text);
+	    } else {
+		// Fallback: select the log's contents and use the legacy copy command.
+		const range = document.createRange();
+		range.selectNodeContents(document.getElementById("log"));
+		const selection = window.getSelection();
+		selection.removeAllRanges();
+		selection.addRange(range);
+		const ok = document.execCommand("copy");
+		selection.removeAllRanges();
+		if (!ok) {
+		    throw new Error("copy command was refused");
+		}
+	    }
+	} catch (err) {
+	    log(`error: could not copy the logs: ${err.message}`);
+	}
+    });
+    
     const progress = document.getElementById("progress");
     
     const mmprojProgress = document.getElementById("mmproj-progress");
@@ -101,7 +127,7 @@ window.addEventListener("load", function load(event){
      */
     const updateBusy = () => {
 	busy.hidden = pending.size === 0;
-	document.getElementById("busy-meter").active = pending.size > 0;
+	document.getElementById("busy-meter").toggleAttribute("active", pending.size > 0);
 	const labels = [...pending.values()].map((p) => {
 	    return `generating ${p} embeddings...`;
 	});
@@ -242,6 +268,10 @@ window.addEventListener("load", function load(event){
 	    (data.file === "mmproj" ? mmprojProgress : progress).value = parseInt(data.text, 10) || 0;
 	} else {
 	    log(`${data.kind}: ${data.text}`);
+		    if (data.kind === "loaded" || data.kind === "error") {
+			document.getElementById("progress-meter").toggleAttribute("active", false);
+			document.getElementById("mmproj-meter").toggleAttribute("active", false);
+		    }
 	    if (data.kind === "loaded" || data.kind === "purged") {
 		worker.postMessage({ kind: "list-cache" });
 	    }
@@ -469,9 +499,17 @@ window.addEventListener("load", function load(event){
 	  * Client for the Parquet query worker; the Parquet-specific work lives in query.js.
 	  * @type {ParquetQuery}
 	  */
+	 let pendingParquetPct = 0;
+	 let parquetPctFrame = 0;
 	 const query = new ParquetQuery({
 	     onProgress: (pct) => {
-		 document.getElementById("parquet-progress").value = pct;
+		 pendingParquetPct = pct;
+		 if (!parquetPctFrame) {
+		     parquetPctFrame = requestAnimationFrame(() => {
+			 parquetPctFrame = 0;
+			 document.getElementById("parquet-progress").value = pendingParquetPct;
+		     });
+		 }
 	     },
 	     onLog: (s) => {
 		 log(`parquet ${s}`);
@@ -508,7 +546,7 @@ window.addEventListener("load", function load(event){
     const setSearching = (on) => {
 	const meter = document.getElementById("search-meter");
 	meter.hidden = !on;
-	meter.active = on;
+	meter.toggleAttribute("active", on);
     };
     
 	 /**
@@ -588,6 +626,29 @@ window.addEventListener("load", function load(event){
 	     document.getElementById("parquet-cached").value = "";
 	 });
 
+    /**
+     * Servo freezes the page for tens of seconds when a large File is read. The app serves files
+     * chosen in the native dialog from disk at /__picked/<size>/<name>, so prefer that URL.
+     * @param {File|string} source
+     * @returns {Promise<File|string>} The URL when the app serves the file, else the source.
+     */
+    const diskSource = async (source) => {
+	if (typeof source === "string") {
+	    return source;
+	}
+	try {
+	    const url = `${location.origin}/__picked/${source.size}/${encodeURIComponent(source.name)}`;
+	    const res = await fetch(url, { method: "HEAD" });
+	    if (res.ok && Number(res.headers.get("content-length")) === source.size) {
+		log(`parquet: reading ${source.name} from disk`);
+		return url;
+	    }
+	} catch (err) {
+	    log(`parquet: disk route unavailable: ${err.message}`);
+	}
+	return source;
+    };
+
     document.getElementById("parquet-load").onclick = async () => {
 	
 	const source = document.getElementById("parquet-file").files[0] || document.getElementById("parquet-url").value.trim();
@@ -595,6 +656,12 @@ window.addEventListener("load", function load(event){
 	if (!source) {
 	    return;
 	}
+	
+	// Show feedback first, and let it paint before any further work.
+	document.getElementById("parquet-meter").setAttribute("active", "");
+	document.getElementById("parquet-progress").value = 0;
+	parquetStatus("opening...");
+	await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
 	
 	// A chosen cached index knows which model it was built for, so no model need be loaded.
 	const cachedSelect = document.getElementById("parquet-cached");
@@ -613,13 +680,19 @@ window.addEventListener("load", function load(event){
 	
 	updateLocal();
 	
-	document.getElementById("parquet-progress").value = 0;
-	
-	parquetStatus("opening...");
-	
 	     try {
+		 // Diagnostic: report stalls of the page's own thread, which also freezes the spinner.
+		 let lastBeat = performance.now();
+		 const heartbeat = setInterval(() => {
+		     const now = performance.now();
+		     if (now - lastBeat > 500) {
+			 log(`page thread stalled ${Math.round(now - lastBeat)} ms`);
+		     }
+		     lastBeat = now;
+		 }, 100);
+		 try {
 		 const t0 = performance.now();
-		 const info = await query.open(source);
+		 const info = await query.open(await diskSource(source));
 		 log(`parquet: ${info.rows} rows in ${info.row_groups} row groups (${(info.size / 1e6).toFixed(1)} MB)`);
 		 parquetStatus(`indexing rows for ${rowModel}...`);
 		 const built = await query.build(rowModel);
@@ -628,6 +701,9 @@ window.addEventListener("load", function load(event){
 		 log(`parquet: index ready in ${secs}s${built.skipped ? `, skipped ${built.skipped} rows with another dimension` : ""}`);
 		 document.getElementById("parquet-progress").value = 100;
 		 indexReady = true;
+		 } finally {
+		     clearInterval(heartbeat);
+		 }
 	     } catch (err) {
 		 parquetStatus("failed");
 		 log(`error: parquet: ${err.message}`);
@@ -699,6 +775,9 @@ window.addEventListener("load", function load(event){
 	     loadedState.model = loadedState.mmproj = false;
 	     updateBusy();
 	     showEmbeddings();
+	     // Show feedback for the whole load, since cached or local files send no download progress.
+	     document.getElementById("progress-meter").toggleAttribute("active", true);
+	     document.getElementById("mmproj-meter").toggleAttribute("active", !!(proj.url || proj.file));
 	     worker.postMessage({ kind: "load", url: model.url, file: model.file, pooling: "mean", mmproj: proj.url, mmprojFile: proj.file });
 	 };
     

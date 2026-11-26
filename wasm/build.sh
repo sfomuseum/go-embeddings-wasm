@@ -20,15 +20,19 @@ if [ ! -d "$PARQUET_SRC" ]; then
 	git clone https://github.com/sfomuseum/go-parquet "$PARQUET_SRC"
 fi
 
-# A workspace file resolves yzma to the local checkout and bypasses vendor/
-# (which does not include llamawasm). It is recreated if it points elsewhere.
-if [ ! -f build/go.work ] || ! grep -qF "$YZMA_SRC" build/go.work; then
-	rm -f build/go.work
-	(cd build && go work init .. "$YZMA_SRC")
-fi
-export GOWORK="$ROOT/build/go.work"
-# The Parquet query module (wasm/query) uses go-parquet; the call is idempotent.
-(cd build && go work use "$PARQUET_SRC")
+# A generated modfile replaces yzma and go-parquet with the local checkouts and
+# -mod=mod bypasses vendor/ (which does not include llamawasm). Regenerated every run.
+rm -f build/wasm.mod build/wasm.sum build/go.work
+cp go.mod build/wasm.mod
+cp go.sum build/wasm.sum 2>/dev/null || true
+cat >> build/wasm.mod <<EOF
+
+replace github.com/hybridgroup/yzma => $YZMA_SRC
+
+replace github.com/sfomuseum/go-parquet => $PARQUET_SRC
+EOF
+export GOWORK=off
+export GOFLAGS="-modfile=$ROOT/build/wasm.mod -mod=mod"
 
 # llama.cpp WebAssembly build + JS glue.
 if [ ! -e "$OUT/yzma-loader.js" ]; then
