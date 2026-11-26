@@ -101,6 +101,7 @@ window.addEventListener("load", function load(event){
      */
     const updateBusy = () => {
 	busy.hidden = pending.size === 0;
+	document.getElementById("busy-meter").active = pending.size > 0;
 	const labels = [...pending.values()].map((p) => {
 	    return `generating ${p} embeddings...`;
 	});
@@ -253,6 +254,9 @@ window.addEventListener("load", function load(event){
 		updateLocal();
 	    } else if (data.kind === "error") {
 		pending.clear();
+		if (searchAfter.size > 0) {
+		    setSearching(false);
+		}
 		searchAfter.clear();
 		showEmbeddings();
 		updateBusy();
@@ -334,6 +338,28 @@ window.addEventListener("load", function load(event){
      * @param {string} [message] - Text to show, e.g. "Searching...".
      * @returns {HTMLElement} The results element.
      */
+    const showImageModal = (src, alt) => {
+	const dialog = document.getElementById("image-modal");
+	const big = dialog.querySelector("img");
+	big.src = src;
+	big.alt = alt || "";
+	dialog.showModal();
+    };
+
+    document.getElementById("image-modal").addEventListener("click", (e) => {
+	// Clicking the backdrop or the close button closes; clicking the image does not.
+	if (e.target.tagName !== "IMG") {
+	    e.currentTarget.close();
+	}
+    });
+
+    document.getElementById("image-modal").addEventListener("keydown", (e) => {
+	if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("modal-close")) {
+	    e.preventDefault();
+	    e.currentTarget.close();
+	}
+    });
+
     const resetResults = (message) => {
 	
 	const root = document.getElementById("results");
@@ -389,6 +415,10 @@ window.addEventListener("load", function load(event){
 		     img.loading = "lazy";
 		     const href = link(thumb, "");
 		     href.replaceChildren(img);
+		     href.addEventListener("click", (e) => {
+			 e.preventDefault();
+			 showImageModal(img.currentSrc || img.src, img.alt);
+		     });
 		     item.append(href);
 		 } else if (a.preview) {
 		     item.append(el("div", String(a.preview)));
@@ -468,6 +498,18 @@ window.addEventListener("load", function load(event){
      * @type {boolean}
      */
     let searching = false;
+
+    /**
+    * Shows or hides the search progress meter, which covers the whole search including
+    * any embedding generated for it.
+    * @param {boolean} on
+    * @returns {void}
+    */
+    const setSearching = (on) => {
+	const meter = document.getElementById("search-meter");
+	meter.hidden = !on;
+	meter.active = on;
+    };
     
 	 /**
 	  * Enables "Search locally" when an index and embeddings are both available.
@@ -619,7 +661,7 @@ window.addEventListener("load", function load(event){
 	     log(`similar: searching locally with ${kind} embeddings`);
 	     resetResults();
 	     searching = true;
-	     document.getElementById("search-progress").hidden = false;
+	     setSearching(true);
 	     updateLocal();
 	     try {
 		 const t0 = performance.now();
@@ -630,7 +672,7 @@ window.addEventListener("load", function load(event){
 		 log(`error: local search failed: ${err.message}`);
 	     } finally {
 		 searching = false;
-		 document.getElementById("search-progress").hidden = true;
+		 setSearching(false);
 		 updateLocal();
 	     }
 	 };
@@ -793,6 +835,9 @@ window.addEventListener("load", function load(event){
 	     } catch (err) {
 		 pending.delete(id);
 		 updateBusy();
+		 if (andSearch) {
+		     setSearching(false);
+		 }
 		 log(`error: cannot decode image: ${err}`);
 		 return;
 	     }
@@ -840,7 +885,8 @@ window.addEventListener("load", function load(event){
 	     preview.hidden = false;
 	     updateSources();
 	     excluded = exclude;
-	     resetResults("Searching...");
+	     resetResults();
+	     setSearching(true);
 	     await embedImage(img, true);
 	 };
 

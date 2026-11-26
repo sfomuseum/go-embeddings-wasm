@@ -8,6 +8,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="stylesheet" type="text/css" href="bootstrap.5.3.8.min.css" />
 	<link rel="stylesheet" type="text/css" href="embeddings.css" />		
+	<script src="progress-meter.js"></script>
 	<style>
 	</style>
     </head>
@@ -16,7 +17,7 @@
 	    <div class="row" id="loading">
 		<div class="col">
 		    <label for="loading-progress">Loading WebAssembly modules&hellip; <span id="loading-status">0 of 2</span></label>
-		    <progress id="loading-progress" max="2" value="0"></progress>
+		    <progress-meter id="loading-meter" active><progress id="loading-progress" max="2" value="0"></progress></progress-meter>
 		    <div id="loading-error" class="text-danger" role="alert" hidden></div>
 		</div>
 	    </div>
@@ -36,7 +37,7 @@
 
 			    <small><span class="feedback">Suggested: <a href="#" class="pick" data-target="url" data-value="https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/main/embeddinggemma-2-Q8_0.gguf">embeddinggemma-2-Q8_0.gguf</a> (300MB)</span></small>
 			    <div>
-				<progress id="progress" max="100" value="0"></progress>
+				<progress-meter id="progress-meter"><progress id="progress" max="100" value="0"></progress></progress-meter>
 			    </div>
 			</div>
 			
@@ -49,7 +50,7 @@
 			    
 			    <small><span class="feedback">Suggested: <a href="#" class="pick" data-target="mmproj" data-value="https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/main/mmproj-embeddinggemma-2-Q8_0.gguf">mmproj-embeddinggemma-2-Q8_0.gguf</a> (500MB)</span></small>
 			    <div>
-				<progress id="mmproj-progress" max="100" value="0"></progress>
+				<progress-meter id="mmproj-meter"><progress id="mmproj-progress" max="100" value="0"></progress></progress-meter>
 			    </div>
 			</div>
 			
@@ -98,7 +99,7 @@
 			</div>
 			
 			<div id="busy" class="mb-3" hidden>
-			    <progress></progress>
+			    <progress-meter id="busy-meter"><progress></progress></progress-meter>
 			    <div id="busy-text"></div>
 			</div>
 
@@ -133,21 +134,20 @@
 			</div>
 			
 			<div>
-			    <progress id="parquet-progress" max="100" value="0"></progress>
+			    <progress-meter id="parquet-meter"><progress id="parquet-progress" max="100" value="0"></progress></progress-meter>
 			</div>
 
-			<div id="layout-search" class="class="mb-3"">
-			    <button class="btn btn-primary" id="similar-local" disabled>Search locally</button>
-			    <progress id="search-progress" class="d-block" hidden></progress>
-			    <small class="d-block"><span class="feedback" id="parquet-load-hint"></span></small>
-			</div>
-			
 		    </div>
 		    
 		</div>
 	    
 		<div class="layout-right">
-		    
+		    <div id="layout-search" class="mb-3">
+			<button class="btn btn-primary" id="similar-local" disabled>Search locally</button>
+			<progress-meter id="search-meter" hidden><progress id="search-progress"></progress></progress-meter>
+			<small class="d-block"><span class="feedback" id="parquet-load-hint"></span></small>
+		    </div>
+	    
 		    <div id="results" hidden>
 		    </div>
 		    		    
@@ -156,6 +156,11 @@
 	    </div>  <!-- layout -->
 	</div> <!-- container -->
 	
+	<dialog id="image-modal" class="p-2 border-0 rounded">
+	    <div class="text-end mb-2"><span class="modal-close" role="button" tabindex="0" title="Close" aria-label="Close"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-circle" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"></path><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"></path></svg></span></div>
+	    <img alt="" crossorigin="anonymous" style="max-width:90vw;max-height:80vh;display:block">
+	</dialog>
+
 	<script src="./query.js"></script>
 	<script src="./embeddings.init.js"></script>
     </body>

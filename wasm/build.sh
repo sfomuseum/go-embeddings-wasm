@@ -37,7 +37,7 @@ GOOS=js GOARCH=wasm go build -o "$OUT/yzma-embeddings.wasm" ./wasm/embeddings
 # The Parquet query module is separate from the embeddings code; -tags wasmjs selects go-parquet's browser range reader.
 GOOS=js GOARCH=wasm go build -tags wasmjs -ldflags="-s -w" -o "$OUT/yzma-query.wasm" ./wasm/query
 cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" "$OUT/" # use the TinyGo copy if building with TinyGo
-cp wasm/embeddings/embed-worker.js wasm/embeddings/index.html wasm/query/query.js wasm/embeddings/embeddings.init.js wasm/embeddings/embeddings.css wasm/query/query-worker.js wasm/query/bootstrap.5.3.8.min.css "$OUT/"
+cp wasm/embeddings/embed-worker.js wasm/embeddings/index.html wasm/query/query.js wasm/embeddings/embeddings.init.js wasm/embeddings/embeddings.css wasm/embeddings/progress-meter.js wasm/query/query-worker.js wasm/query/bootstrap.5.3.8.min.css "$OUT/"
 
 echo "Built $OUT"
 
